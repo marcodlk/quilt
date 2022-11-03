@@ -8,6 +8,7 @@ import functools
 import json
 import sys
 import time
+import datetime
 
 import requests
 
@@ -43,12 +44,31 @@ def cmd_config(catalog_url, **kwargs):
     Configure quilt3 to a Quilt stack
     """
     config_values = kwargs['set'] if kwargs['set'] else {}
+    s3_config_values = kwargs['set_s3'] if kwargs['set_s3'] else {}
     if catalog_url and config_values:
         raise QuiltException("Expected either an auto-config URL or key=value pairs, but got both.")
 
     if config_values:
         api.config(**config_values)
-    else:
+    if s3_config_values:
+        s3_config_keys = {'endpoint_url', 'access_key', 'secret_key'}
+        unrecognized_keys = set(s3_config_values).difference(s3_config_keys)
+        if unrecognized_keys:
+            raise QuiltException(
+                f'Unrecognized S3 config key(s): {list(unrecognized_keys)}. '
+                f'Known S3 config keys: {list(s3_config_keys)}'
+            )
+
+        s3_endpoint_url = s3_config_values.get('endpoint_url')
+        s3_access_key = s3_config_values.get('access_key')
+        s3_secret_key = s3_config_values.get('secret_key')
+
+        api.config(s3_endpoint_url=s3_endpoint_url)
+
+        if s3_access_key or s3_secret_key:
+            _update_credentials(s3_access_key, s3_secret_key)
+
+    if not (config_values or s3_config_values):
         if catalog_url is None:
             existing_catalog_url = get_from_config('navigator_url')
             if existing_catalog_url is not None:
@@ -57,6 +77,28 @@ def cmd_config(catalog_url, **kwargs):
                 print('<None>')
         else:
             api.config(catalog_url)
+
+
+def _update_credentials(access_key: str, secret_key: str):
+    old_creds = session._load_credentials()
+    access_key = access_key or old_creds.get('access_key')
+    secret_key = secret_key or old_creds.get('secret_key')
+    new_creds = _make_credentials(secret_key, secret_key)
+    session._save_credentials(new_creds)
+
+
+def _make_credentials(access_key: str, secret_key: str):
+    # TODO: currently hardcoding expiry time a year out and token always None...?
+    expiry_time = (
+        datetime.datetime.utcnow().astimezone() + datetime.timedelta(days=365)
+    ).isoformat()
+    token = None
+    return dict(
+        access_key=access_key,
+        secret_key=secret_key,
+        token=token,
+        expiry_time=expiry_time
+    )
 
 
 class ParseConfigDict(argparse.Action):
@@ -247,12 +289,24 @@ def create_parser():
             "--set",
             metavar="KEY=VALUE",
             nargs="+",
-            help="Set a number of key-value pairs for config_values"
-                 "(do not put spaces before or after the = sign). "
-                 "If a value contains spaces, you should define "
-                 "it with double quotes: "
-                 'foo="this is a sentence". Note that '
-                 "values are always treated as strings.",
+            help="Set a number of key-value pairs for config_values "
+                "(do not put spaces before or after the = sign). "
+                "If a value contains spaces, you should define "
+                "it with double quotes: "
+                'foo="this is a sentence". Note that '
+                "values are always treated as strings.",
+            action=ParseConfigDict,
+    )
+    config_p.add_argument(
+            "--set-s3",
+            metavar="KEY=VALUE",
+            nargs="+",
+            help="Set a number of key-value pairs for S3-related config values "
+                "(do not put spaces before or after the = sign). "
+                "If a value contains spaces, you should define "
+                "it with double quotes: "
+                'foo="this is a sentence". Note that '
+                "values are always treated as strings.",
             action=ParseConfigDict,
     )
     config_p.set_defaults(func=cmd_config)
