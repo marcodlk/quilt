@@ -443,6 +443,7 @@ def load_config():
     return local_config
 
 
+
 def get_from_config(key):
     return load_config().get(key)
 
@@ -559,3 +560,11 @@ def catalog_package_url(catalog_url, bucket, package_name, package_timestamp="la
     if tree:
         package_url = package_url + f"/tree/{package_timestamp}"
     return package_url
+
+
+def get_s3_endpoint_url():
+    try:
+        return os.environ["QUILT_S3_ENDPOINT_URL"]
+    except KeyError:
+        pass
+    return get_from_config("s3_endpoint_url")
