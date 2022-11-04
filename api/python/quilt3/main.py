@@ -22,6 +22,7 @@ from .util import (
     catalog_package_url,
     catalog_s3_url,
     get_from_config,
+    load_config,
 )
 
 
@@ -43,8 +44,8 @@ def cmd_config(catalog_url, **kwargs):
     """
     Configure quilt3 to a Quilt stack
     """
-    config_values = kwargs['set'] if kwargs['set'] else {}
-    s3_config_values = kwargs['set_s3'] if kwargs['set_s3'] else {}
+    config_values = kwargs['set'] or {}
+    s3_config_values = kwargs['set_s3'] or {}
     if catalog_url and config_values:
         raise QuiltException("Expected either an auto-config URL or key=value pairs, but got both.")
 
@@ -62,7 +63,7 @@ def cmd_config(catalog_url, **kwargs):
         s3_endpoint_url = s3_config_values.get('endpoint_url')
         s3_access_key = s3_config_values.get('access_key')
         s3_secret_key = s3_config_values.get('secret_key')
-
+        
         api.config(s3_endpoint_url=s3_endpoint_url)
 
         if s3_access_key or s3_secret_key:
@@ -78,12 +79,15 @@ def cmd_config(catalog_url, **kwargs):
         else:
             api.config(catalog_url)
 
+    if kwargs['show']:
+        print(json.dumps(load_config(), indent=4))
+
 
 def _update_credentials(access_key: str, secret_key: str):
     old_creds = session._load_credentials()
     access_key = access_key or old_creds.get('access_key')
     secret_key = secret_key or old_creds.get('secret_key')
-    new_creds = _make_credentials(secret_key, secret_key)
+    new_creds = _make_credentials(access_key, secret_key)
     session._save_credentials(new_creds)
 
 
@@ -286,28 +290,34 @@ def create_parser():
         nargs="?"
     )
     config_p.add_argument(
-            "--set",
-            metavar="KEY=VALUE",
-            nargs="+",
-            help="Set a number of key-value pairs for config_values "
-                "(do not put spaces before or after the = sign). "
-                "If a value contains spaces, you should define "
-                "it with double quotes: "
-                'foo="this is a sentence". Note that '
-                "values are always treated as strings.",
-            action=ParseConfigDict,
+        "--set",
+        metavar="KEY=VALUE",
+        nargs="+",
+        help="Set a number of key-value pairs for config_values "
+            "(do not put spaces before or after the = sign). "
+            "If a value contains spaces, you should define "
+            "it with double quotes: "
+            'foo="this is a sentence". Note that '
+            "values are always treated as strings.",
+        action=ParseConfigDict,
     )
     config_p.add_argument(
-            "--set-s3",
-            metavar="KEY=VALUE",
-            nargs="+",
-            help="Set a number of key-value pairs for S3-related config values "
-                "(do not put spaces before or after the = sign). "
-                "If a value contains spaces, you should define "
-                "it with double quotes: "
-                'foo="this is a sentence". Note that '
-                "values are always treated as strings.",
-            action=ParseConfigDict,
+        "--set-s3",
+        metavar="KEY=VALUE",
+        nargs="+",
+        help="Set a number of key-value pairs for S3-related config values "
+            "(do not put spaces before or after the = sign). "
+            "If a value contains spaces, you should define "
+            "it with double quotes: "
+            'foo="this is a sentence". Note that '
+            "values are always treated as strings.",
+        action=ParseConfigDict,
+    )
+    config_p.add_argument(
+        "--show",
+        default=False,
+        action="store_true",
+        help="Print the Quilt configuration"
     )
     config_p.set_defaults(func=cmd_config)
 
