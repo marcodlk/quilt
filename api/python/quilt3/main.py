@@ -63,7 +63,7 @@ def cmd_config(catalog_url, **kwargs):
         s3_endpoint_url = s3_config_values.get('endpoint_url')
         s3_access_key = s3_config_values.get('access_key')
         s3_secret_key = s3_config_values.get('secret_key')
-        
+
         api.config(s3_endpoint_url=s3_endpoint_url)
 
         if s3_access_key or s3_secret_key:

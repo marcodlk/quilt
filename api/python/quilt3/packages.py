@@ -576,12 +576,24 @@ class Package:
         validate_package_name(name)
         registry = get_package_registry(registry)
 
-        top_hash = (
-            get_bytes(registry.pointer_latest_pk(name)).decode()
-            if top_hash is None else
-            registry.resolve_top_hash(name, top_hash)
-        )
-        pkg_manifest = registry.manifest_pk(name, top_hash)
+        # NOTE: mdlk - added try/except here to make s3 request errors more specific
+        #       for upstream handling
+        try:
+            top_hash = (
+                get_bytes(registry.pointer_latest_pk(name)).decode()
+                if top_hash is None else
+                registry.resolve_top_hash(name, top_hash)
+            )
+            pkg_manifest = registry.manifest_pk(name, top_hash)
+        except botocore.exceptions.ClientError as e:
+            if e.response["Error"]["Code"] == "NoSuchBucket":
+                raise QuiltException(
+                    f"Unable to locate registry '{registry.base}'")
+            elif e.response["Error"]["Code"] == "NoSuchKey":
+                raise QuiltException(
+                    f"Unable to locate package '{name}' in registry '{registry.base}'")
+            else:
+                raise
 
         def download_manifest(dst):
             copy_file(pkg_manifest, PhysicalKey.from_path(dst), message="Downloading manifest")
