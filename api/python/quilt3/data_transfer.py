@@ -549,8 +549,14 @@ def _copy_file_list_internal(file_list, results, message, callback, exceptions_t
 
     s3_client_provider = S3ClientProvider()  # Share provider across threads to reduce redundant public bucket checks
 
-    with tqdm(desc=message, total=total_size, unit='B', unit_scale=True, disable=DISABLE_TQDM) as progress, \
-         ThreadPoolExecutor(MAX_CONCURRENCY) as executor:
+    with tqdm(
+        desc=message, 
+        total=total_size, 
+        unit='B', 
+        unit_scale=True, 
+        disable=DISABLE_TQDM,
+        bar_format='{desc:<20}{percentage:3.0f}%|{bar}{r_bar}'
+    ) as progress, ThreadPoolExecutor(MAX_CONCURRENCY) as executor:
 
         def progress_callback(bytes_transferred):
             if stopped:
@@ -1044,12 +1050,19 @@ def _calculate_sha256_internal(src_list, sizes, results):
             # so it finishes its own tasks.
             del generator
 
-    with tqdm(desc="Hashing", total=total_size, unit='B', unit_scale=True, disable=DISABLE_TQDM) as progress, \
-         ThreadPoolExecutor() as executor, \
-         ThreadPoolExecutor(
-             MAX_CONCURRENCY,
-             thread_name_prefix='s3-executor',
-         ) as s3_executor:
+    with tqdm(
+        desc="Hashing",
+        total=total_size,
+        unit='B',
+        unit_scale=True,
+        disable=DISABLE_TQDM,
+        bar_format='{desc:<20}{percentage:3.0f}%|{bar}{r_bar}'
+    ) as progress, \
+    ThreadPoolExecutor() as executor, \
+    ThreadPoolExecutor(
+        MAX_CONCURRENCY,
+        thread_name_prefix='s3-executor',
+    ) as s3_executor:
         s3_context = types.SimpleNamespace(
             find_correct_client=with_lock(S3ClientProvider().find_correct_client),
             pending_parts_semaphore=threading.BoundedSemaphore(s3_max_pending_parts),

@@ -786,7 +786,7 @@ class Package:
                     unit="",
                     unit_scale=True,
                     disable=DISABLE_TQDM,
-                    bar_format='{l_bar}{bar}| {n}/{total} [{elapsed}<{remaining}, {rate_fmt}]',
+                    bar_format='{desc:<20}{percentage:3.0f}%|{bar}{r_bar}'
                 ),
                 loads=ManifestJSONDecoder().decode,
             )
@@ -872,6 +872,14 @@ class Package:
             for f in files:
                 if not f.is_file():
                     continue
+                
+                # filter out metafile
+                # TODO: mdlk - this is the most convenient place to add this for the sake of 
+                #       mstc-quilt downstream, but does not belong in core quilt3... how to
+                #       handle this in mstc-quilt?
+                if f.name == '.quilt-package':
+                    continue
+
                 logical_key = f.relative_to(src_path).as_posix()
                 # check update policy
                 if update_policy == 'existing' and logical_key in root:
