@@ -83,7 +83,7 @@ def _update_credentials(access_key: str, secret_key: str):
     old_creds = session._load_credentials()
     access_key = access_key or old_creds.get('access_key')
     secret_key = secret_key or old_creds.get('secret_key')
-    new_creds = _make_credentials(secret_key, secret_key)
+    new_creds = _make_credentials(access_key, secret_key)
     session._save_credentials(new_creds)
 
 
