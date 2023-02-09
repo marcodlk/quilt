@@ -1,0 +1,28 @@
+version: "3"
+
+services:
+
+  minio:
+    image: minio/minio
+    container_name: quilt-minio
+    command: server /data 
+    environment:
+      MINIO_ROOT_USER: user
+      MINIO_ROOT_PASSWORD: helloworld
+      MINIO_API_SELECT_PARQUET: "on"
+    ports:
+      - 127.0.0.1:9000:9000
+
+  createbuckets:
+    image: minio/mc
+    container_name: quilt-mc
+    depends_on:
+      - minio
+    entrypoint: >
+      /bin/sh -c "
+      sleep 2;
+      /usr/bin/mc alias set myminio http://minio:9000 user helloworld;
+      /usr/bin/mc mb myminio/quilt-example;
+      /usr/bin/mc admin policy set readwrite myminio/quilt-example;
+      exit 0;
+      "
