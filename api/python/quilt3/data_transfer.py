@@ -172,6 +172,13 @@ class S3ClientProvider:
 
     def _build_client(self, get_config):
         session = self.get_boto_session()
+        endpoint_url = util.get_s3_endpoint_url()
+        if endpoint_url:
+            return session.client(
+                's3',
+                config=Config(signature_version='s3v4'),
+                endpoint_url=endpoint_url,
+            )
         return session.client('s3', config=get_config(session))
 
     def _build_standard_client(self):
